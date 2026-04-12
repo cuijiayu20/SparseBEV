@@ -51,3 +51,5 @@ checkpoints
 pretrain
 *.png
 *.jpg
+paper_text.txt
+ckpts

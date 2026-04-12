@@ -390,3 +390,79 @@ class LoadMultiViewImageFromMultiSweepsFutureInterleave(object):
                 results['lidar2img'].append(results_next['lidar2img'][i * 6 + j])
 
         return results
+
+
+@PIPELINES.register_module()
+class LoadMaskMultiViewImageFromFiles(object):
+    """加载带泥点遮罩的多视角图像，用于遮挡鲁棒性测试。
+
+    参照 robust_benchmark/Toolkit 中 LoadMaskMultiViewImageFromFiles 的实现，
+    通过 exp 参数控制遮挡强度：
+        S0: 无遮挡（不使用此 Pipeline）
+        S1: exp=1.0 轻微遮挡
+        S2: exp=2.0 中等遮挡
+        S3: exp=3.0 严重遮挡
+        S4: exp=5.0 极端遮挡
+
+    Args:
+        to_float32 (bool): 是否转为 float32
+        color_type (str): 图像颜色类型
+        noise_nuscenes_ann_file (str): 噪声PKL文件路径
+        mask_file (str): 泥点遮罩图片目录
+        exp (float): 遮挡强度指数，越小遮挡越重
+    """
+
+    def __init__(self, to_float32=False, color_type='color',
+                 noise_nuscenes_ann_file='', mask_file='', exp=3.0):
+        self.to_float32 = to_float32
+        self.color_type = color_type
+        self.exp = exp
+
+        # 加载噪声数据中的 mask_id 分配信息
+        noise_data = mmcv.load(noise_nuscenes_ann_file, file_format='pkl')
+        self.noise_camera_data = noise_data['camera']
+        self.mask_file = mask_file
+
+        print(f'[LoadMaskMultiViewImageFromFiles] mask_dir={mask_file}, exp={exp}')
+
+    def put_mask_on_img(self, img, mask):
+        """将泥点遮罩叠加到图像上。
+
+        复用 robust_benchmark/Toolkit 中的实现逻辑。
+        原始代码使用固定 exp=3，此处改为可配置参数。
+        """
+        h, w = img.shape[:2]
+        mask = np.rot90(mask)
+        mask = mmcv.imresize(mask, (w, h), return_scale=False)
+        alpha = mask / 255.0
+        alpha = np.power(alpha, self.exp)
+        img_with_mask = alpha * img + (1 - alpha) * mask
+        return img_with_mask
+
+    def __call__(self, results):
+        filename = results['img_filename']
+
+        img_lists = []
+        for name in filename:
+            single_img = mmcv.imread(name, self.color_type)
+            # 根据噪声PKL中分配的 mask_id 选择遮罩
+            noise_index = os.path.basename(name)
+            if noise_index in self.noise_camera_data:
+                mask_id = self.noise_camera_data[noise_index]['noise']['mask_noise']['mask_id']
+                mask_id_file = f'mask_{mask_id}.jpg'
+                mask_path = os.path.join(self.mask_file, mask_id_file)
+                mask = mmcv.imread(mask_path, self.color_type)
+                single_img = self.put_mask_on_img(single_img, mask)
+            img_lists.append(single_img)
+
+        results['filename'] = filename
+        results['img'] = img_lists
+        results['img_shape'] = [img.shape for img in img_lists]
+        results['ori_shape'] = [img.shape for img in img_lists]
+        results['pad_shape'] = [img.shape for img in img_lists]
+
+        return results
+
+    def __repr__(self):
+        return (f'{self.__class__.__name__}(to_float32={self.to_float32}, '
+                f'color_type={self.color_type}, exp={self.exp})')
