@@ -25,7 +25,7 @@ GPUS=${3:-4}
 # 数据路径
 NOISE_PKL="data/nuscenes/nuscenes_infos_val_with_noise.pkl"
 DROP_PKL="data/nuscenes/nuscenes_infos_val_with_noise_Drop.pkl"
-MASK_DIR="robust_benchmark/Mud_Mask_selected"
+MASK_DIR="robust_benchmark/Occlusion_mask"
 OUTPUT_DIR="robust_results"
 
 # 分布式配置

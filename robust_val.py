@@ -156,7 +156,7 @@ def main():
                        help='Extrinsics noise type: single or all cameras')
     parser.add_argument('--occlusion-exp', type=float, default=3.0,
                        help='Occlusion mask exp parameter (1.0/2.0/3.0/5.0)')
-    parser.add_argument('--mask-dir', type=str, default='robust_benchmark/Mud_Mask_selected',
+    parser.add_argument('--mask-dir', type=str, default='robust_benchmark/Occlusion_mask',
                        help='Path to mud mask directory')
     parser.add_argument('--output-dir', type=str, default='robust_results',
                        help='Directory to save results')
