@@ -76,7 +76,29 @@ def main():
     print('SparseBEV 鲁棒性基准测试结果汇总')
     print('=' * 80)
 
+    excel_data = []
+
+    def add_to_excel(category, experiment, param, metrics, baseline_rdrr=None):
+        row = {
+            'Category': category,
+            'Experiment': experiment,
+            'Parameter': param,
+            'NDS': metrics.get('NDS', 0),
+            'mAP': metrics.get('mAP', 0),
+            'mATE': metrics.get('mATE', 0),
+            'mASE': metrics.get('mASE', 0),
+            'mAOE': metrics.get('mAOE', 0),
+            'mAVE': metrics.get('mAVE', 0),
+            'mAAE': metrics.get('mAAE', 0),
+            'NDS_Degradation': compute_degradation(clean, metrics, 'NDS') if category != 'Clean' else 0.0,
+            'mAP_Degradation': compute_degradation(clean, metrics, 'mAP') if category != 'Clean' else 0.0,
+        }
+        if baseline_rdrr is not None:
+            row.update(baseline_rdrr)
+        excel_data.append(row)
+
     # ---- 基准结果 ----
+    add_to_excel('Clean', 'Clean Baseline', '-', clean)
     print('\n## 基准结果 (Clean)')
     print(f'  NDS:  {clean["NDS"]:.4f}')
     print(f'  mAP:  {clean["mAP"]:.4f}')
@@ -113,7 +135,11 @@ def main():
                 nds_rdrr = compute_rdrr(b_nds_deg, nds_deg)
                 map_rdrr = compute_rdrr(b_map_deg, map_deg)
                 row.extend([f'{nds_rdrr:.2f}', f'{map_rdrr:.2f}'])
+                rdrr_dict = {'NDS_RDRR(%)': nds_rdrr, 'mAP_RDRR(%)': map_rdrr}
+            else:
+                rdrr_dict = None
 
+            add_to_excel('Drop', f'Drop {ratio}%', f'{ratio}%', m, rdrr_dict)
             print(format_table_row(row))
 
     # ---- 外参扰动测试结果 ----
@@ -148,7 +174,11 @@ def main():
                     nds_rdrr = compute_rdrr(b_nds_deg, nds_deg)
                     map_rdrr = compute_rdrr(b_map_deg, map_deg)
                     row.extend([f'{nds_rdrr:.2f}', f'{map_rdrr:.2f}'])
+                    rdrr_dict = {'NDS_RDRR(%)': nds_rdrr, 'mAP_RDRR(%)': map_rdrr}
+                else:
+                    rdrr_dict = None
 
+                add_to_excel('Extrinsics', f'{label} {level}', f'{level}', m, rdrr_dict)
                 print(format_table_row(row))
 
     # ---- 遮挡测试结果 ----
@@ -182,7 +212,11 @@ def main():
                 nds_rdrr = compute_rdrr(b_nds_deg, nds_deg)
                 map_rdrr = compute_rdrr(b_map_deg, map_deg)
                 row.extend([f'{nds_rdrr:.2f}', f'{map_rdrr:.2f}'])
+                rdrr_dict = {'NDS_RDRR(%)': nds_rdrr, 'mAP_RDRR(%)': map_rdrr}
+            else:
+                rdrr_dict = None
 
+            add_to_excel('Occlusion', f'Occlusion {level}', f'exp={exp_val}', m, rdrr_dict)
             print(format_table_row(row))
 
     # ---- 保存汇总到文件 ----
@@ -206,7 +240,24 @@ def main():
     summary_path = os.path.join(args.results_dir, 'summary.json')
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
-    print(f'\n汇总结果已保存到: {summary_path}')
+    print(f'\n汇总 JSON 结果已保存到: {summary_path}')
+
+    # ---- 生成 Excel 报告 ----
+    try:
+        import pandas as pd
+        df = pd.DataFrame(excel_data)
+        excel_path = os.path.join(args.results_dir, 'summary.xlsx')
+        try:
+            df.to_excel(excel_path, index=False)
+            print(f'Excel 汇总文件已保存到: {excel_path}')
+        except ImportError:
+            # 降级生成 CSV
+            csv_path = os.path.join(args.results_dir, 'summary.csv')
+            df.to_csv(csv_path, index=False, encoding='utf-8-sig')
+            print(f'\n[提示] 当前环境缺少 openpyxl 库无法生成 .xlsx，已降级生成 CSV 文件: {csv_path}')
+            print('您可以直接使用 Excel 打开此 CSV 文件。')
+    except ImportError:
+        print('\n[提示] 环境中未安装 pandas 库，跳过生成 Excel 文件。')
 
 
 if __name__ == '__main__':

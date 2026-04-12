@@ -62,6 +62,10 @@ run_test() {
     
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✓ ${desc} 完成"
     
+    # ---- 自动触发汇总生成，边跑实验边写入/更新 Excel ----
+    # 抑制输出避免刷屏，汇总结果将直接静默保存到 robust_results/summary.xlsx
+    python compute_rdrr.py --results-dir ${OUTPUT_DIR} > /dev/null 2>&1 || true
+    
     # 每次测试后递增端口，避免冲突
     PORT=$((PORT + 1))
 }

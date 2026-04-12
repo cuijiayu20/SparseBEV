@@ -270,6 +270,24 @@ def main():
 
         logging.info(f'Results saved to {output_path}')
 
+        # ---- 追加保存到 CSV 以便实验进行中实时查看 ----
+        csv_path = os.path.join(args.output_dir, 'live_summary.csv')
+        file_exists = os.path.isfile(csv_path)
+        with open(csv_path, 'a', encoding='utf-8-sig') as f:
+            # 如果文件不存在，先写入表头
+            if not file_exists:
+                f.write('Experiment,NDS,mAP,mATE,mASE,mAOE,mAVE,mAAE\n')
+            
+            exp_name = args.noise_type
+            if args.noise_type == 'drop':
+                exp_name += f'_{args.drop_ratio}%'
+            elif args.noise_type == 'extrinsics':
+                exp_name += f'_{args.extrinsics_level}_{args.extrinsics_type}'
+            elif args.noise_type == 'occlusion':
+                exp_name += f'_exp{args.occlusion_exp}'
+                
+            f.write(f"{exp_name},{metrics['NDS']:.4f},{metrics['mAP']:.4f},{metrics['mATE']:.4f},{metrics['mASE']:.4f},{metrics['mAOE']:.4f},{metrics['mAVE']:.4f},{metrics['mAAE']:.4f}\n")
+
 
 if __name__ == '__main__':
     main()
