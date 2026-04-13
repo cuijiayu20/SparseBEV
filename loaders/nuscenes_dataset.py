@@ -13,18 +13,10 @@ class CustomNuScenesDataset(NuScenesDataset):
         all_sweeps_prev = []
         curr_index = index
         while len(all_sweeps_prev) < into_past:
-            if curr_index == 0:
+            curr_sweeps = self.data_infos[curr_index]['sweeps']
+            if len(curr_sweeps) == 0:
                 break
-            curr_scene = self.data_infos[curr_index]['scene_token']
-            prev_scene = self.data_infos[curr_index - 1]['scene_token']
-            if curr_scene != prev_scene:
-                break
-
-            curr_sweeps = self.data_infos[curr_index].get('sweeps', [])
-            # 过滤掉 Lidar sweeps (StreamPETR pkl 特有)，只留下包含相机信息的 sweeps
-            valid_sweeps = [s for s in curr_sweeps if 'CAM_FRONT' in s]
-            
-            all_sweeps_prev.extend(valid_sweeps)
+            all_sweeps_prev.extend(curr_sweeps)
             all_sweeps_prev.append(self.data_infos[curr_index - 1]['cams'])
             curr_index = curr_index - 1
         
@@ -33,15 +25,8 @@ class CustomNuScenesDataset(NuScenesDataset):
         while len(all_sweeps_next) < into_future:
             if curr_index >= len(self.data_infos):
                 break
-            curr_scene = self.data_infos[curr_index - 1]['scene_token']
-            next_scene = self.data_infos[curr_index]['scene_token']
-            if curr_scene != next_scene:
-                break
-
-            curr_sweeps = self.data_infos[curr_index].get('sweeps', [])
-            valid_sweeps = [s for s in curr_sweeps if 'CAM_FRONT' in s]
-            
-            all_sweeps_next.extend(valid_sweeps[::-1])
+            curr_sweeps = self.data_infos[curr_index]['sweeps']
+            all_sweeps_next.extend(curr_sweeps[::-1])
             all_sweeps_next.append(self.data_infos[curr_index]['cams'])
             curr_index = curr_index + 1
 
